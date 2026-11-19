@@ -75,21 +75,23 @@ Watch tags live under **Monitoring**.
 
 Source: https://github.com/frangoteam/FUXA (MIT). Node.js v22 is already installed.
 
-1. Download the latest release zip from https://github.com/frangoteam/FUXA/releases and unpack it to `D:\Tools\fuxa`.
-2. In PowerShell:
+1. Install the lighter official package (no Siemens S7 driver; Modbus works), keeping everything on D: (installed this way on 2026-11-20, FUXA 1.3.1, about 250 MB):
    ```
-   cd D:\Tools\fuxa\server
-   npm install --cache D:\Tools\npm-cache
-   npm start
+   npm install -g @frangoteam/fuxa-min@1.3.1 --prefix D:\Tools\fuxa --cache D:\Tools\npm-cache
    ```
-   The `--cache` flag keeps npm's download cache off C:.
-3. Open http://localhost:1881 (Chrome is recommended).
+2. Start it with `D:\Tools\fuxa\start-fuxa.cmd`. It runs from `D:\Tools\fuxa`, so projects are saved in `D:\Tools\fuxa\_appdata`. Close the window to stop it.
+3. Open http://localhost:1881/editor to build screens (Chrome is recommended); http://localhost:1881 shows the running HMI.
 4. Add a Modbus TCP device: 127.0.0.1, port **502** (OpenPLC), or port **5021** for the soft-PLC.
-5. Add the tags in [hmi/fuxa-tags.csv](hmi/fuxa-tags.csv): all are holding registers at the 0-based address in `register_0_based`. **Check with one tag first** (for example `State`, register 1035) whether your FUXA version counts addresses from 0 or 1, then build the two screens. Fault F7 is exactly this mistake.
+5. Add the tags: run `python hmi/make_fuxa_device.py` (soft-PLC) or `python hmi/make_fuxa_device.py --plc 127.0.0.1:502` (OpenPLC) while FUXA is running, then reload the editor. It creates the `BatchPLC` device with all 75 HMI tags from [hmi/fuxa-tags.csv](hmi/fuxa-tags.csv). **FUXA's address offset counts from 1: offset = 0-based register + 1** (checked on FUXA 1.3.1: offset 1105 reads `MixTime_s` = 60). Fault F7 is exactly this kind of mistake.
+6. Add the two screens (both share the helpers in `hmi/fuxa_view.py`):
+   - `python hmi/make_fuxa_mixer_view.py` → **Mixer HMI** (operator): batch status, recipe / batch count / mixing time inputs, Start, Stop at end, Hold, Resume, Reset + ack, Next and Abort, and the per-material target / actual / silo / gate / in-flight table. Open http://localhost:1881/home?viewName=Mixer%20HMI
+   - `python hmi/make_fuxa_feeder_view.py` → **Feeder HMI** (maintenance): Manual / Semi-auto / Auto, the sequence buttons, silo weights, gate positions and alarm codes, manual gate setpoints, manual device presets (including "C1 alone" to show the interlock), VFD frequency, current and fault codes, and the alarm words. Open http://localhost:1881/home?viewName=Feeder%20HMI
+
+   Inputs send their value when you press Enter. Manual presets write the whole ManualBits word, so each press replaces the last one.
 
 ### Fault injection
 
-At the simulator's `lab>` prompt: `fault F1 on` … `fault F5 on`, and `off` to repair. F6 is a program file: upload `plc/faults/F6_batching_bad_edit.st` instead of the normal program (soft-PLC: `python -m lab.run_softplc --f6`). F7 is an HMI tag: point the "Silo 4 weight" tag at 1048 instead of 1047.
+At the simulator's `lab>` prompt: `fault F1 on` … `fault F5 on`, and `off` to repair. F6 is a program file: upload `plc/faults/F6_batching_bad_edit.st` instead of the normal program (soft-PLC: `python -m lab.run_softplc --f6`). F7 is an HMI tag: in FUXA, change `Weight4`'s address offset from 1048 to 1049 (register 1048, which is silo 5).
 
 ## Licences
 
