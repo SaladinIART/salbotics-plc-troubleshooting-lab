@@ -46,6 +46,11 @@ class StMatchesMap(unittest.TestCase):
         for n in names:
             self.assertRegex(ST, rf"\b{n}\(IN", n)
 
+    def test_one_fb_instance_per_declaration(self):
+        # OpenPLC v3's matiec segfaults on "A, B : TON;" (found 2026-11-20).
+        multi = re.findall(r"^\s*\w+\s*,[\w ,]*:\s*(TON|TOF|TP|R_TRIG|F_TRIG|CTU|CTD)\s*;", ST, flags=re.M)
+        self.assertEqual(multi, [])
+
     def test_configuration_block(self):
         self.assertIn("TASK task0(INTERVAL := T#100ms", ST)
         self.assertIn("PROGRAM instance0 WITH task0 : Batching;", ST)

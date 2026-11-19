@@ -208,8 +208,17 @@ VAR
   SecPulse, Flash : BOOL;
   NextSec : TIME := T#1s;
 
-  StepTmr, ClockTmr, CommsTmr, C1ZeroTmr, C2ZeroTmr, MixFbTmr : TON;
-  NoFlowTmr, ResetTmr, DoorOpenTmr, DoorCloseTmr : TON;
+  (* One FB instance per line: OpenPLC v3's compiler (matiec) crashes on 'A, B : TON;'. *)
+  StepTmr : TON;
+  ClockTmr : TON;
+  CommsTmr : TON;
+  C1ZeroTmr : TON;
+  C2ZeroTmr : TON;
+  MixFbTmr : TON;
+  NoFlowTmr : TON;
+  ResetTmr : TON;
+  DoorOpenTmr : TON;
+  DoorCloseTmr : TON;
 END_VAR
 
 (* ===== 1. First scan: default recipes ===== *)

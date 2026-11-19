@@ -13,7 +13,7 @@ A weigh-batching cell you can break on purpose and fix: five silos on load cells
 | Part | State |
 |---|---|
 | Design, plant simulator, soft-PLC, tests (34, all passing) | done |
-| `plc/batching.st` | written and checked against the tested Python copy; **not yet compiled in OpenPLC** |
+| `plc/batching.st` | **compiles in OpenPLC Runtime v3** (2026-11-20; one fix: one timer per declaration line, because v3's compiler crashes on `A, B : TON;`) |
 | FUXA screens, one write-up and video per fault | next (needs OpenPLC and FUXA installed) |
 
 ## Quick start without installing anything

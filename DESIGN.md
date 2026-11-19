@@ -160,4 +160,4 @@ Each fault gets its own page and video in CP-11c, written in this order: symptom
 
 `python -m unittest` runs the plant simulator with the soft-PLC copy of the logic. The tests cover a full batch (state order, every material within tolerance, mass balance, nothing on the floor, belts started downstream first and stopped upstream first), in-flight learning, Semi-auto and Manual, warnings, E-stop, all seven faults (symptom, alarm, fix, finished batch), the Modbus server, and that the ST program's addresses and steps match `lab/iomap.py`.
 
-They do **not** compile `plc/batching.st`: that happens the first time it is uploaded to OpenPLC (CP-11c). Until then the ST file is checked by review and by its match with the tested Python copy.
+They do not compile `plc/batching.st`; OpenPLC does. It was compiled with OpenPLC Runtime v3 on 2026-11-20 ("Compilation finished successfully") after one fix: v3's compiler crashes on several function-block instances in one declaration (`A, B : TON;`), so each timer has its own line, and a test now guards that.
