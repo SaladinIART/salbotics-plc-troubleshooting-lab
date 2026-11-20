@@ -51,6 +51,16 @@ class StMatchesMap(unittest.TestCase):
         multi = re.findall(r"^\s*\w+\s*,[\w ,]*:\s*(TON|TOF|TP|R_TRIG|F_TRIG|CTU|CTD)\s*;", ST, flags=re.M)
         self.assertEqual(multi, [])
 
+    def test_openplc_monitoring_can_parse_every_located_line(self):
+        # OpenPLC v3 webserver/monitoring.py: line.strip().split(' ') -> name, AT, %addr, :, TYPE;
+        lines = [l for l in ST.splitlines()
+                 if l.find(" AT ") > 0 and "%" in l and "(*" not in l and "*)" not in l]
+        self.assertEqual(len(lines), len(st_located()))
+        for line in lines:
+            tmp = line.strip().split(" ")
+            self.assertEqual((tmp[1], tmp[3]), ("AT", ":"), line)
+            self.assertTrue(tmp[2].startswith("%"), line)
+
     def test_configuration_block(self):
         self.assertIn("TASK task0(INTERVAL := T#100ms", ST)
         self.assertIn("PROGRAM instance0 WITH task0 : Batching;", ST)

@@ -47,6 +47,13 @@ DO = {  # coils (FC1/5/15) -> %QX100.0 ...
 }
 DO_COUNT = 16
 
+# Instructor panel on the same rack server, unit 99 (OpenPLC never polls it):
+# coils 32-36 switch faults F1-F5 on/off, coil 40 refills every silo.
+INSTRUCTOR_UNIT = 99
+INSTRUCTOR_FAULT_COILS = {"F1": 32, "F2": 33, "F3": 34, "F4": 35, "F5": 36}
+INSTRUCTOR_REFILL_COIL = 40
+INSTRUCTOR_COIL_COUNT = 48
+
 IR = {"Heartbeat": 0}  # input registers (FC4) -> %IW100 ...
 for _i in range(1, 6):
     IR[f"Weight{_i}"] = _i                # weight transmitter, 4-20 mA as raw counts

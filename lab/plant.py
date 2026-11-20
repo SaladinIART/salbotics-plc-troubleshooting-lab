@@ -9,6 +9,7 @@ the machines, and writes the inputs (discrete inputs, input registers).
 from collections import deque
 
 from .iomap import (DI, DI_COUNT, DO, DO_COUNT, HR, HR_COUNT, IR, IR_COUNT,
+                    INSTRUCTOR_COIL_COUNT, INSTRUCTOR_FAULT_COILS, INSTRUCTOR_REFILL_COIL, INSTRUCTOR_UNIT,
                     RAW_4MA, RAW_SPAN, SILO_SPAN_KG, UNIT_ID, GATE_BITS)
 from .modbus import DataStore
 
@@ -176,8 +177,8 @@ class Plant:
         self.comm_ok = False
         self.t = 0.0
         self._hb = 0
-        self.store = DataStore(co=DO_COUNT, di=DI_COUNT, hr=HR_COUNT, ir=IR_COUNT,
-                               unit_ids={UNIT_ID}, on_request=self.touch)
+        self.store = DataStore(co=INSTRUCTOR_COIL_COUNT, di=DI_COUNT, hr=HR_COUNT, ir=IR_COUNT,
+                               unit_ids={UNIT_ID, INSTRUCTOR_UNIT}, on_request=self.touch)
         self._write_inputs(0.1)
 
     # ---- instructor controls ------------------------------------------
@@ -185,7 +186,8 @@ class Plant:
         if code not in FAULTS:
             raise ValueError(f"unknown fault {code}; simulator faults are {', '.join(FAULTS)}")
         (self.faults.add if on else self.faults.discard)(code)
-        self.store.unit_ids = {2} if "F2" in self.faults else {UNIT_ID}
+        self.store.unit_ids = {2 if "F2" in self.faults else UNIT_ID, INSTRUCTOR_UNIT}
+        self.store.co[INSTRUCTOR_FAULT_COILS[code]] = on   # keep the instructor panel in step
         self.c1.drag_a = 14.0 if "F3" in self.faults else 0.0
         self.gates[3].jammed = "F4" in self.faults
 
@@ -193,12 +195,26 @@ class Plant:
         s = self.silos[silo - 1]
         s.kg = s.filtered = float(kg)
 
-    def touch(self):
-        """The master talked to the rack (called by the server or the direct link)."""
+    def touch(self, unit=None):
+        """The master talked to the rack (called by the server or the direct link).
+        Instructor-panel traffic (unit 99) doesn't count as the master."""
+        if unit == INSTRUCTOR_UNIT:
+            return
         self.since_contact = 0.0
+
+    def _instructor(self):
+        st = self.store
+        for code, coil in INSTRUCTOR_FAULT_COILS.items():
+            if st.co[coil] != (code in self.faults):
+                self.set_fault(code, st.co[coil])
+        if st.co[INSTRUCTOR_REFILL_COIL]:
+            st.co[INSTRUCTOR_REFILL_COIL] = False
+            for n in range(1, 6):
+                self.refill(n)
 
     # ---- simulation ----------------------------------------------------
     def step(self, dt=0.1):
+        self._instructor()
         self.t += dt
         self.since_contact += dt
         self.comm_ok = self.since_contact <= 1.0
@@ -300,6 +316,6 @@ def link_inputs(plant, ctrl):
 
 def link_outputs(plant, ctrl):
     if plant.store.accepts(UNIT_ID):
-        plant.store.co[:] = ctrl.co
+        plant.store.co[:DO_COUNT] = ctrl.co
         plant.store.hr[:] = ctrl.hr
         plant.touch()

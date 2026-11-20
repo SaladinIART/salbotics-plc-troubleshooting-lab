@@ -184,5 +184,33 @@ class F7HmiTagOffByOne(unittest.TestCase):
             server.server_close()
 
 
+class InstructorPanel(unittest.TestCase):
+    """Faults switched over Modbus unit 99, as tools/instructor.py does."""
+
+    def test_coils_switch_faults_and_unit_99_keeps_working_during_f2(self):
+        from lab.iomap import INSTRUCTOR_FAULT_COILS, INSTRUCTOR_UNIT
+        rig = new_rig()
+        server = ModbusServer(rig.plant.store, "127.0.0.1", 0)
+        server.start()
+        c = ModbusClient("127.0.0.1", server.server_address[1], unit=INSTRUCTOR_UNIT, timeout=1)
+        try:
+            c.write_coil(INSTRUCTOR_FAULT_COILS["F2"], True)
+            rig.run(0.2)
+            self.assertIn("F2", rig.plant.faults)
+            rig.run(3)                                    # instructor traffic must not feed the watchdog
+            c.read_coils(32, 5)
+            rig.run(0.5)
+            self.assertTrue(alarm1(rig, 1))               # comms lost, as with the console
+            c.write_coil(INSTRUCTOR_FAULT_COILS["F2"], False)   # still reachable on unit 99
+            rig.run(1)
+            self.assertNotIn("F2", rig.plant.faults)
+            rig.plant.set_fault("F3")                     # console and panel stay in step
+            self.assertEqual(c.read_coils(INSTRUCTOR_FAULT_COILS["F3"], 1), [True])
+        finally:
+            c.close()
+            server.shutdown()
+            server.server_close()
+
+
 if __name__ == "__main__":
     unittest.main()

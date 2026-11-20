@@ -18,7 +18,7 @@ class DataStore:
     co = coils, di = discrete inputs (bools); hr = holding, ir = input registers
     (ints, stored as signed or unsigned, sent as unsigned 16-bit).
     `unit_ids`: the unit IDs this device answers; None answers any.
-    `on_request`: called (under the lock) after every request it answered.
+    `on_request(unit)`: called (under the lock) after every request it answered.
     """
 
     def __init__(self, co=0, di=0, hr=0, ir=0, unit_ids=None, on_request=None):
@@ -138,7 +138,7 @@ class _Handler(socketserver.BaseRequestHandler):
             with store.lock:
                 resp = store.handle(pdu)
                 if store.on_request and not resp[0] & 0x80:
-                    store.on_request()
+                    store.on_request(unit)
             try:
                 sock.sendall(struct.pack(">HHHB", tid, 0, len(resp) + 1, unit) + resp)
             except OSError:

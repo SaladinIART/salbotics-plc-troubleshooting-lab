@@ -7,6 +7,7 @@ A weigh-batching cell you can break on purpose and fix: five silos on load cells
 - Design, I/O list, register map, sequence, alarms and the seven faults: [DESIGN.md](DESIGN.md)
 - PLC program (IEC 61131-3 Structured Text for OpenPLC): [plc/batching.st](plc/batching.st)
 - HMI tag list for FUXA: [hmi/fuxa-tags.csv](hmi/fuxa-tags.csv)
+- **The seven faults, one page each** (symptom → I/O → program online → configuration → repair, plus a recording script): [faults/](faults/README.md)
 
 ## Status
 
@@ -14,7 +15,9 @@ A weigh-batching cell you can break on purpose and fix: five silos on load cells
 |---|---|
 | Design, plant simulator, soft-PLC, tests (34, all passing) | done |
 | `plc/batching.st` | **compiles in OpenPLC Runtime v3** (2026-11-20; one fix: one timer per declaration line, because v3's compiler crashes on `A, B : TON;`) |
-| FUXA screens, one write-up and video per fault | next (needs OpenPLC and FUXA installed) |
+| FUXA Mixer HMI and Feeder HMI | done, running on OpenPLC |
+| Fault write-ups F1–F7 | done ([faults/](faults/README.md)); values captured with `tools/fault_snapshots.py` |
+| One video per fault | next: recorded by the owner |
 
 ## Quick start without installing anything
 
