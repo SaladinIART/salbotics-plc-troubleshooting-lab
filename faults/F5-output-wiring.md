@@ -1,5 +1,9 @@
 # F5 · Output on, device not moving: discharge door solenoid
 
+*[Back to the main page](../README.md) · [How troubleshooting works](../docs/START_HERE.md) · [Glossary](../docs/GLOSSARY.md)*
+
+> **In plain words:** The controller switched on the signal to open the mixer door, but a broken wire meant the signal never reached the valve. Follow the electricity from the controller to the valve to find where it stops.
+
 **Mirrors:** the classic "the PLC says it's on, but nothing moves". **Plant:** the wire from the output card to the mixer's discharge-door solenoid valve is broken (or a terminal has corroded or come loose).
 
 **Inject:** `fault F5 on` (or `tools/instructor.py F5 on`) before the end of a batch. **Repair:** `fault F5 off`.

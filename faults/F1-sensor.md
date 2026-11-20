@@ -1,5 +1,9 @@
 # F1 · Sensor: silo 3 weight signal lost
 
+*[Back to the main page](../README.md) · [How troubleshooting works](../docs/START_HERE.md) · [Glossary](../docs/GLOSSARY.md)*
+
+> **In plain words:** A silo's weighing sensor lost its signal because its cable broke, so the controller saw an impossible weight and safely paused the batch. The fix is the cable, not the program.
+
 **Mirrors:** sensor checks on a production line. **Plant:** the silo 3 load-cell transmitter's 4–20 mA loop opens (a broken cable, or a corroded or loose junction-box terminal) while Material C is being weighed out.
 
 **Inject:** `fault F1 on` at the simulator's `lab>` prompt, or `python3 tools/instructor.py F1 on`, while silo 3 is feeding. **Repair:** `fault F1 off`.

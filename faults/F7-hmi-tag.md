@@ -1,5 +1,9 @@
 # F7 · HMI change: a tag pointing one register too far
 
+*[Back to the main page](../README.md) · [How troubleshooting works](../docs/START_HERE.md) · [Glossary](../docs/GLOSSARY.md)*
+
+> **In plain words:** A typing slip in the operator screen's settings made it show the wrong silo's weight, so a healthy silo looked like it was leaking. The controller had the right number all along.
+
 **Mirrors:** making HMI changes. **Plant:** while editing the Feeder HMI, someone typed the "silo 4 weight" tag address one too high. FUXA counts addresses from 1 and the PLC map from 0, so off-by-one mistakes are easy.
 
 **Inject:** in FUXA → Connections → BatchPLC → tag `Weight4`, change the address offset from **1048** to **1049**. **Repair:** set it back to 1048, or regenerate all tags with `python hmi/make_fuxa_device.py --plc 127.0.0.1:502`.

@@ -1,5 +1,7 @@
 # The seven faults
 
+*New to this? Read [how troubleshooting works](../docs/START_HERE.md) first, and keep the [glossary](../docs/GLOSSARY.md) open. The [main page](../README.md) has every story in plain words.*
+
 A demonstration rebuilt with open tools: a simulated plant, not any company's equipment. Each page follows the same fault-tracing order:
 
 0. **Read the HMI and the alarm.** What stopped, and which step was it on?

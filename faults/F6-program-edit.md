@@ -1,5 +1,9 @@
 # F6 · Program edit: a copy-paste error in the recipe
 
+*[Back to the main page](../README.md) · [How troubleshooting works](../docs/START_HERE.md) · [Glossary](../docs/GLOSSARY.md)*
+
+> **In plain words:** A small copy-paste mistake in a program change made the machine put in too much of one ingredient. There's no alarm, because the machine did exactly what it was told. Comparing with the last good version finds it.
+
 **Mirrors:** editing and downloading PLC programs. **Plant:** someone edited the recipe-loading section "to fix silo 2", copied the line above and forgot to change the index. It was downloaded without comparing it to the last good backup.
 
 **Inject:** in OpenPLC, **Programs → Upload Program** → `plc/faults/F6_batching_bad_edit.st`, then Start PLC. In the soft-PLC: `python -m lab.run_softplc --f6`. **Repair:** load `plc/batching.st` again (OpenPLC keeps both in its program list).

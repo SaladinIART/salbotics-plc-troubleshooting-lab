@@ -1,5 +1,9 @@
 # F4 · Stepper drive: silo 4 gate jammed
 
+*[Back to the main page](../README.md) · [How troubleshooting works](../docs/START_HERE.md) · [Glossary](../docs/GLOSSARY.md)*
+
+> **In plain words:** A lump of material jammed one silo's gate. The gate's motor sensed it was stuck and stopped to protect itself. Clear the jam, and the machine re-learns the gate's position before carrying on.
+
 **Mirrors:** checking stepper motors and drives. **Plant:** a lump of caked Material D jams the silo 4 gate blade. When the drive tries to open it, the motor stalls.
 
 **Inject:** `fault F4 on` (or `tools/instructor.py F4 on`) before a batch. **Repair:** `fault F4 off`.

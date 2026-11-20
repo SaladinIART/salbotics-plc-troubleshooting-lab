@@ -1,5 +1,9 @@
 # F2 · Module configuration: remote I/O node address wrong
 
+*[Back to the main page](../README.md) · [How troubleshooting works](../docs/START_HERE.md) · [Glossary](../docs/GLOSSARY.md)*
+
+> **In plain words:** After a part was replaced, the controller could no longer talk to the box that connects it to the machines, because the new part was set to the wrong address. Everything stopped and the screen showed old numbers.
+
 **Mirrors:** swapping an I/O module or card and checking its configuration (DIP switches). **Plant:** after a card swap, the remote I/O rack's node-address switches are set to **2**, but the master PLC polls node **1**.
 
 **Inject:** `fault F2 on` (or `tools/instructor.py F2 on`) while a batch runs. **Repair:** `fault F2 off`.

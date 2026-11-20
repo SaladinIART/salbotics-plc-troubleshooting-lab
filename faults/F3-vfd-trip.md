@@ -1,5 +1,9 @@
 # F3 · VFD trip: conveyor 1 overload
 
+*[Back to the main page](../README.md) · [How troubleshooting works](../docs/START_HERE.md) · [Glossary](../docs/GLOSSARY.md)*
+
+> **In plain words:** A conveyor's motor kept switching itself off to avoid overheating, because jammed rollers made it work too hard. Pressing reset only buys a few seconds; freeing the rollers fixes it.
+
 **Mirrors:** checking VFDs / inverters. **Plant:** conveyor 1 drags (seized return idlers, belt rubbing). Empty, it just runs heavy; loaded, the drive trips on motor overload.
 
 **Inject:** `fault F3 on` at the simulator's `lab>` prompt, or `python3 tools/instructor.py F3 on`. **Repair:** `fault F3 off` / `instructor.py F3 off`.
