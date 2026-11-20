@@ -1,46 +1,58 @@
 # F1 · Sensor: silo 3 weight signal lost
 
-**Mirrors:** sensor checks on a production line. **Plant:** the silo 3 load-cell transmitter's 4–20 mA loop opens (a broken cable or loose junction-box terminal) while Material C is being weighed out.
+**Mirrors:** sensor checks on a production line. **Plant:** the silo 3 load-cell transmitter's 4–20 mA loop opens (a broken cable, or a corroded or loose junction-box terminal) while Material C is being weighed out.
 
-**Inject:** start a batch; when the Feeder HMI shows "Silo weighing 3", type `fault F1 on` at `lab>`. **Repair:** `fault F1 off`.
+**Inject:** `fault F1 on` at the simulator's `lab>` prompt, or `python3 tools/instructor.py F1 on`, while silo 3 is feeding. **Repair:** `fault F1 off`.
 
-## 0. Symptom (HMI)
+Screenshots: OpenPLC Runtime v3 + plant simulator + FUXA Feeder HMI, 2026-11-20.
 
-- The batch stops: Step **100** (hold), Status 2.
-- Alarm1 **4096** (bit 12, weight signal fault) and Alarm2 **4096** (bit 12, silo 3). Lamp flashing, sounder on.
-- **Silo 3 weight reads −5000 kg.** A silo can't weigh less than nothing: that's the clue.
+## Walkthrough
 
-## 1. Check the I/O
+### 1. Symptom: the batch holds, and silo 3 weighs −5000 kg
 
-| Tag (OpenPLC Monitoring) | Healthy | With F1 |
-|---|---|---|
-| `IR_Weight3` (raw counts) | about 17 855 (8 949 kg) | **0** |
-| `HR_GateSP3` | 1000 or 250 while feeding | 0 (gate closed by the hold) |
+![Feeder HMI: step 100, silo 3 weight -5000, alarm words 4096](img/F1-1-signal-fault.png)
 
-Raw counts are mA × 1600, so 0 counts = 0 mA. A live 4–20 mA loop never reads below 4 mA (6 400 counts); 0 mA means the loop is open.
+- **Sequence:** Step **100** (hold), status word 2.
+- **Silos and gates:** silo 3 reads **−5000 kg**. A silo can't weigh less than nothing, which is the first clue. Every gate is closed.
+- **Alarms:** alarm word 1 = **4096** (bit 12, weight signal fault); alarm word 2 = **4096** (bit 12, silo 3).
 
-## 2. Program online
+### 2. Check the I/O: the raw signal
 
-In `batching.st`, section 2: `SignalBad[i] := (RawW[i] < 5760) OR (RawW[i] > 32640);`, which is below 3.6 mA or above 20.4 mA. `SignalBad[3]` is TRUE, so `A_Signal` latched and the sequence went to HOLD with `ResumeState` = 60 (feeding). The program is doing its job; the fault is outside it.
+![OpenPLC Monitoring: IR_Weight3 = 0 while the other silos read about 25 000](img/F1-2-monitoring-raw-zero.png)
 
-## 3. Configuration
+- `IR_Weight3` = **0** raw counts. The other four silos read 24 578–25 600.
+- Raw counts are mA × 1600: 0 counts = **0 mA**. A live 4–20 mA loop never reads below 4 mA (6 400 counts), so 0 mA means the loop is **open**.
+
+### 3. Read the program online
+
+Section 2 of `batching.st`:
+
+```
+SignalBad[i] := (RawW[i] < 5760) OR (RawW[i] > 32640);   (* below 3.6 mA or above 20.4 mA *)
+WeightKg[i]  := INT_TO_REAL(RawW[i] - 6400) * 20000.0 / 25600.0;   (* 0 counts -> -5000 kg *)
+```
+
+`SignalBad[3]` is TRUE, so `A_Signal` latched and the sequence held. The −5000 kg is just the scaling applied to 0 mA. The program is doing its job; the fault is outside it.
+
+### 4. Configuration
 
 Nothing to change: the other four silos read normally on the same rack, so the rack and its scaling are fine. The fault is on this one channel.
 
-## 4. Repair and prove
+### 5. Repair and prove
 
-1. At the transmitter, measure the loop current with a meter in series: 0 mA confirms the open loop. Check the cable and the junction-box terminals.
-2. Repair (`fault F1 off`). Silo 3 weight returns to normal.
-3. **Reset + ack** (silences the sounder, clears the latch), then **Resume**.
-4. The batch carries on from the 53 kg already weighed out and finishes Material C at **396 kg** of 400 kg (in tolerance), because the start weight was kept through the hold.
+![Feeder HMI after the repair: step 60, silo 3 feeding, gate 100 %, no alarms](img/F1-3-after-repair.png)
 
-## Recording script (about 3 min)
+1. At the transmitter, put a meter in series with the loop: 0 mA confirms the open circuit. Check the cable and the junction-box terminals (in a corrosive plant, look for green or white corrosion on the terminals first).
+2. Repair (lab: `fault F1 off`). Silo 3's weight returns to normal.
+3. **Reset + ack**, then **Resume**.
+4. **Result:** step **60**, silo **3** feeding at gate 100 %, alarm words 0. The batch carries on from the weight already dispensed, because the PLC kept silo 3's start weight through the hold.
 
-1. "Batch running, silo 3 feeding." Show the Feeder HMI.
-2. Inject F1. "The batch held. Alarm: weight signal fault, silo 3. And the weight reads minus five thousand kilos."
-3. OpenPLC Monitoring: "`IR_Weight3` is zero counts. That's zero milliamps; a healthy loop never goes below four. So the loop is open: a sensor or wiring fault, not the program."
-4. "Other silos read fine on the same rack, so it's this channel only."
-5. "On site I'd put a meter in the loop. Here, repair." `fault F1 off`. Reset, Resume.
-6. "It carried on from where it stopped and finished in tolerance." Show 396 / 400 kg.
+## Summary
 
-**Lesson:** a live-zero signal (4–20 mA) tells you the difference between "empty" and "broken". Read the raw value before you trust the engineering value.
+| | |
+|---|---|
+| **Symptom** | Batch holds while weighing Material C; silo 3 reads −5000 kg |
+| **Online view** | `IR_Weight3` = 0 counts (0 mA); `SignalBad[3]` TRUE |
+| **Cause** | 4–20 mA loop open: cable or a corroded junction-box terminal |
+| **Fix** | Meter the loop, repair the wiring, Reset + ack, Resume |
+| **Lesson** | A live-zero signal (4–20 mA) tells you the difference between *empty* and *broken*. Read the raw value before trusting the engineering value |

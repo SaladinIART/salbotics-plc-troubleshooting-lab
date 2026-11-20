@@ -24,7 +24,7 @@ A demonstration rebuilt with open tools: a simulated plant, not any company's eq
 
 ## How the pages are illustrated
 
-Each fault is run on the real stack (OpenPLC Runtime v3 + plant simulator + FUXA) and captured as screenshots at each step: symptom, I/O in OpenPLC Monitoring, the test, the repair. **F3 is done** ([F3-vfd-trip.md](F3-vfd-trip.md)); the other pages still carry a text script and get their screenshots next. Images live in [img/](img/).
+Each fault is run on the real stack (OpenPLC Runtime v3 + plant simulator + FUXA) and captured as screenshots at each step: symptom, I/O in OpenPLC Monitoring, the test, the repair. **All seven pages are illustrated** (29 screenshots captured 2026-11-20). Images live in [img/](img/).
 
 To reproduce a page yourself:
 1. **OpenPLC:** running the program (http://localhost:8080). Status should say Running.

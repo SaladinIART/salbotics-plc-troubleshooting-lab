@@ -2,44 +2,57 @@
 
 **Mirrors:** swapping an I/O module or card and checking its configuration (DIP switches). **Plant:** after a card swap, the remote I/O rack's node-address switches are set to **2**, but the master PLC polls node **1**.
 
-**Inject:** while silo 1 is feeding, type `fault F2 on`. **Repair:** `fault F2 off`.
+**Inject:** `fault F2 on` (or `tools/instructor.py F2 on`) while a batch runs. **Repair:** `fault F2 off`.
 
-## 0. Symptom (HMI)
+Screenshots: OpenPLC Runtime v3 + plant simulator + FUXA Feeder HMI, 2026-11-20.
 
-- Everything stops at once: belts, gates and mixer.
-- After about 2 s, Step **100**, Alarm1 **2** (bit 1, remote I/O comms lost), lamp flashing, sounder on.
-- **The HMI values freeze.** Weights, gate positions and currents stop changing.
+## Walkthrough
 
-## 1. Check the I/O
+### 1. Symptom: everything stops, and the HMI freezes
 
-- **The PLC's picture is stale.** 1.2 s after the fault, the plant's conveyor 1 was already slowing (42 Hz), but the PLC still showed `DI_C1_SpeedOK` TRUE and stayed in step 60. It was reading old values.
-- **The rack protected the plant on its own.** After 1 s of silence it applied its fault action: outputs off, setpoints to 0. So the gates closed and the belts coasted to a stop.
+![Feeder HMI: step 100, alarm word 1 = 2, but gate 3 still shows 25 % and conveyor 1 9.6 A](img/F2-1-comms-lost-frozen-hmi.png)
 
-## 2. Program online
+- **Sequence:** Step **100**, alarm word 1 = **2** (bit 1, remote I/O comms lost).
+- **The trap:** the HMI still shows gate 3 at **25 %** and conveyor 1 at **9.6 A**, but the belts have actually stopped. These are the **last values the PLC received** before it lost the rack. Every number on the screen is stale.
 
-- `IR_Heartbeat` stays at one value (93 in the capture). The rack counts it up every 100 ms; frozen means no fresh data.
-- Section 5 of the program: `HBSame := IR_Heartbeat = LastHB;` → `CommsTmr` (2 s) → `A_Comms`.
-- The OpenPLC dashboard log shows "Modbus Read … failed on MB device RIO1" and reconnect attempts.
+### 2. Check the I/O: is anything changing?
 
-## 3. Configuration (this is the fault)
+![OpenPLC Monitoring: IR_Heartbeat = 7712, the same in two captures 4 s apart](img/F2-2-heartbeat-frozen.png)
 
-- OpenPLC → Slave Devices → RIO1: **Slave ID 1**.
-- The rack answers only its own node address. In the lab, `fault F2 on` sets the rack to 2; on real hardware you'd read it off the module's address switches.
-- Mismatch found: the module was set to 2 after the swap.
+- The rack counts `IR_Heartbeat` up every 100 ms. Here it reads **7712**, and still 7712 four seconds later.
+- When every input freezes at once, suspect the **communication or the module**, not a single sensor.
 
-## 4. Repair and prove
+### 3. Read the program online and the PLC log
 
-1. Set the module back to node 1 (`fault F2 off`). The heartbeat moves again.
-2. **Reset + ack**, then **Resume**. The sequence restarts the mixer, then conveyor 2, then conveyor 1, and carries on weighing silo 1.
-3. Batch completes: nothing spilled, nothing dropped on the floor.
+- Section 5 of `batching.st`: `HBSame := IR_Heartbeat = LastHB;` → 2 s timer `CommsTmr` → `A_Comms`. That's the alarm you saw.
 
-## Recording script (about 3 min)
+![OpenPLC runtime log: Modbus reads failed on device RIO1, connection timed out, reconnecting](img/F2-3-openplc-log.png)
 
-1. "Silo 1 feeding. Now I'll change the rack's node address, like a card swapped without checking its switches." `fault F2 on`.
-2. "Everything stopped, then: comms lost. Notice the HMI numbers froze."
-3. Monitoring: "The heartbeat isn't moving. The PLC is looking at old data: for a second it still thought conveyor 1 was running."
-4. "The rack shut its own outputs after one second. That's its fault action, and why nothing spilled."
-5. Slave Devices page: "The master polls node 1. The module says 2. Fix the switch." `fault F2 off`.
-6. Reset, Resume: "Downstream first, then upstream, and the batch finishes."
+- The OpenPLC dashboard log repeats: *"Modbus Read Discrete Input Registers failed on MB device RIO1: Connection timed out"* … *"Device RIO1 is disconnected. Attempting to reconnect…"*. The PLC is asking, and nobody answers.
+- **The rack protected the plant on its own:** after 1 s with no master, it applied its fault action (outputs off, gate setpoints 0), so the gates closed and the belts stopped. That's why nothing spilled.
 
-**Lesson:** when every input freezes at once, suspect the communication or the module configuration before any single sensor. Check the address settings after every module swap.
+### 4. Configuration (this is the fault)
+
+![OpenPLC Slave Devices: RIO1, Slave ID 1, 127.0.0.1 port 5020](img/F2-4-slave-device-id.png)
+
+- The master's configuration for RIO1: **Slave ID 1**, 127.0.0.1, port 5020.
+- The rack answers only its own node address. On real hardware you'd read it from the module's address switches; here, `fault F2 on` set the rack to **2**.
+- **Mismatch found:** the replacement card wasn't set to match the configuration.
+
+### 5. Repair and prove
+
+![Feeder HMI after the repair: step 60, silo 4 feeding, alarms 0](img/F2-5-after-repair.png)
+
+1. Set the module's address back to 1 (lab: `fault F2 off`). The heartbeat counts again.
+2. **Reset + ack**, then **Resume**. The sequence restarts the mixer, then conveyor 2, then conveyor 1 (downstream first), and carries on.
+3. **Result:** step 60, feeding again, alarm words 0, nothing spilled.
+
+## Summary
+
+| | |
+|---|---|
+| **Symptom** | Everything stops; "remote I/O comms lost"; HMI values frozen |
+| **Online view** | `IR_Heartbeat` stuck; OpenPLC log: Modbus reads to RIO1 time out |
+| **Cause** | Node address on the replacement module ≠ the master's configuration |
+| **Fix** | Set the address switches to match (1), Reset + ack, Resume |
+| **Lesson** | When everything freezes at once, check the communication and module configuration before any sensor. After every module swap, check its address against the master's configuration |

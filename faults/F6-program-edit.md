@@ -1,32 +1,46 @@
 # F6 · Program edit: a copy-paste error in the recipe
 
-**Mirrors:** editing and downloading PLC programs. **Plant:** someone edited the recipe-loading section "to fix silo 2", copied the line above, and forgot to change the index. The program was downloaded without comparing it to the last good backup.
+**Mirrors:** editing and downloading PLC programs. **Plant:** someone edited the recipe-loading section "to fix silo 2", copied the line above and forgot to change the index. It was downloaded without comparing it to the last good backup.
 
-**Inject:** upload `plc/faults/F6_batching_bad_edit.st` in OpenPLC (Programs → Upload) instead of `batching.st`, and start the PLC. In the soft-PLC: `python -m lab.run_softplc --f6`. **Repair:** upload `plc/batching.st` again.
+**Inject:** in OpenPLC, **Programs → Upload Program** → `plc/faults/F6_batching_bad_edit.st`, then Start PLC. In the soft-PLC: `python -m lab.run_softplc --f6`. **Repair:** load `plc/batching.st` again (OpenPLC keeps both in its program list).
 
-## 0. Symptom (HMI)
+Screenshots: OpenPLC Runtime v3 + plant simulator + FUXA Mixer HMI, 2026-11-20.
 
-- **No alarm at all.** The batch runs and completes normally.
-- The Mixer HMI's batch table gives it away:
+## Walkthrough
 
-| | A | B | C | D | E |
-|---|---|---|---|---|---|
-| Recipe 1 (`R1_A…E`) | 800 | **500** | 400 | 200 | 100 |
-| Target this batch | 800 | **800** | 400 | 200 | 100 |
-| Actual | 796 | **796** | 396 | 196 | 95 |
+### 1. The program that's running
 
-The batch is 2 280 kg instead of about 2 000 kg, with 300 kg too much Material B. On a real line, quality would find it downstream, not the PLC.
+![OpenPLC dashboard: running "Batching F6 bad edit"](img/F6-1-f6-program-running.png)
 
-## 1. Check the I/O
+On a real line you wouldn't know an edit had been made. This is here so the reader can follow along.
 
-All I/O is healthy: silo 2 weighed exactly what the PLC asked for. The weighing system worked; the request was wrong.
+### 2. Symptom: no alarm, but the batch is wrong
 
-## 2. Program online
+![Mixer HMI after a complete batch: Material B target 800 kg, actual 796 kg, alarm words 0](img/F6-2-mixer-table.png)
 
-- The target comes from step 5 (LOAD_RECIPE). Online, `TargetKg[2]` is 800 while `RecipeKg[2]` (= `HMI_R1_B`) is 500.
-- In the program: `TargetKg[2] := RecipeKg[RecipeBase + 1];`. It should be `+ 2`.
+- The batch ran start to finish: **batches done 1, alarm words 0**.
+- **This batch:** Material **B: target 800 kg, actual 796 kg**. Recipe 1 calls for 500 kg of B.
+- The batch is about 2 280 kg instead of about 2 000 kg, with ~300 kg too much Material B. On a real line, quality would find it downstream, not the PLC.
 
-## 3. Configuration (version control)
+### 3. Check the I/O
+
+All I/O is healthy: silo 2 weighed out exactly what the PLC asked for (796 kg for a target of 800). The weighing system worked; **the request was wrong**.
+
+### 4. Read the program online: where does the target come from?
+
+![OpenPLC Monitoring: HMI_Target2 = 800, HMI_Actual2 = 796](img/F6-3-target2.png)
+
+![OpenPLC Monitoring: recipe 1 = 800 / 500 / 400 / 200 / 100](img/F6-4-recipe-r1.png)
+
+- `HMI_Target2` (%MW26) = **800**, but `HMI_R1_B` (%MW61) = **500**.
+- The target is set in step 5 (LOAD_RECIPE). In the running program:
+
+```
+TargetKg[1] := RecipeKg[RecipeBase + 1];
+TargetKg[2] := RecipeKg[RecipeBase + 1];   (* edited 'to fix silo 2' *)   <- should be + 2
+```
+
+### 5. Configuration / version control
 
 Compare the running program with the last known-good copy:
 
@@ -34,19 +48,19 @@ Compare the running program with the last known-good copy:
 git diff --no-index plc/batching.st plc/faults/F6_batching_bad_edit.st
 ```
 
-Exactly one logic line differs (the test `tests/test_st_consistency.py` checks this too).
+Exactly one logic line differs (`tests/test_st_consistency.py` checks this too).
 
-## 4. Repair and prove
+### 6. Repair and prove
 
-1. Restore the correct line (upload `plc/batching.st`), compile, start.
-2. Run one test batch. The targets now match the recipe (800 / 500 / 400 / 200 / 100).
+1. Load the good program (OpenPLC: **Programs** → *Batching v2* → **Launch program**; stop the PLC first), then **Start PLC**.
+2. Run one test batch: the targets match the recipe again (800 / 500 / 400 / 200 / 100).
 
-## Recording script (about 3 min)
+## Summary
 
-1. "No alarm. The batch finished. But look at the table: recipe says 500 kilos of B, the target says 800."
-2. "The scales are right: silo 2 gave exactly what it was asked for. So the request is wrong. That's the program."
-3. Show the LOAD_RECIPE lines: "Silo 2 loads recipe entry plus one. Copy-paste from the line above."
-4. Run the diff: "Against the last good backup, one line changed."
-5. Upload the good program, run a batch: "Targets match the recipe."
-
-**Lesson:** the PLC does exactly what it's told. Before you download an edit, compare it with the last good backup and run a test batch.
+| | |
+|---|---|
+| **Symptom** | No alarm; batches come out off-ratio (silo 2 = 800 kg instead of 500 kg) |
+| **Online view** | `HMI_Target2` 800 ≠ `HMI_R1_B` 500; `TargetKg[2] := RecipeKg[RecipeBase + 1]` |
+| **Cause** | Copy-paste edit downloaded without a compare against the backup |
+| **Fix** | Diff against the last good program, restore, download, test batch |
+| **Lesson** | The PLC does exactly what it's told. Compare every edit with the last good backup, and run a test batch before production |

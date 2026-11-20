@@ -1,46 +1,54 @@
 # F7 · HMI change: a tag pointing one register too far
 
-**Mirrors:** making HMI changes. **Plant:** while editing the Feeder HMI, someone typed the "Silo 4 weight" tag address one too high. FUXA counts from 1 and the PLC map from 0, so off-by-one mistakes are easy.
+**Mirrors:** making HMI changes. **Plant:** while editing the Feeder HMI, someone typed the "silo 4 weight" tag address one too high. FUXA counts addresses from 1 and the PLC map from 0, so off-by-one mistakes are easy.
 
-**Inject:** in FUXA → Connections → BatchPLC → tag `Weight4`, change the address offset from **1048** to **1049**. **Repair:** set it back to 1048.
+**Inject:** in FUXA → Connections → BatchPLC → tag `Weight4`, change the address offset from **1048** to **1049**. **Repair:** set it back to 1048, or regenerate all tags with `python hmi/make_fuxa_device.py --plc 127.0.0.1:502`.
 
-## 0. Symptom (HMI)
+Screenshots: OpenPLC Runtime v3 + plant simulator + FUXA Feeder HMI, 2026-11-20.
 
-- No alarm.
-- While **silo 5** (Material E) is weighing out, the Feeder HMI shows **silo 4's weight dropping** (2 600 → 2 565 kg in 5 s). It looks like gate 4 is leaking. Someone could spend an hour on the wrong gate.
+## Walkthrough
 
-## 1. Check the I/O
+### 1. Symptom: "silo 4 is leaking"
 
-- Gate 4: position 0, no alarm. Gate 5 is open (25 %, dribble).
-- The real silo 4 weight is steady (5 804 kg).
+![Feeder HMI: silo 5 feeding, but silo 4 shows the same falling weight (14 816 kg)](img/F7-1-wrong-tag-a.png)
 
-## 2. Program online (the PLC is right)
+![Feeder HMI five seconds later: silo 4 and silo 5 both 14 809 kg](img/F7-2-wrong-tag-b.png)
 
-In OpenPLC Monitoring:
+- **Silo 5** is feeding (gate 5 at 25 %, silo weighing 5).
+- **Silo 4's weight falls with it:** 14 816 → 14 809 kg in 5 s, while **gate 4 is at 0 %** and has no alarm.
+- No alarm. It looks like gate 4 is leaking, and someone could spend an hour on the wrong gate.
 
-| Tag | Value |
+### 2. Check the I/O
+
+Gate 4 is closed with no alarm; gate 5 is open. Nothing on site explains silo 4 losing weight.
+
+### 3. Read the program online: the PLC is right
+
+![OpenPLC Monitoring: HMI_Weight4 (%MW23) = 14 602, HMI_Weight5 (%MW24) = 14 803](img/F7-3-monitoring-truth.png)
+
+- `HMI_Weight4` (%MW23) = **14 602 kg, steady**: the real silo 4.
+- `HMI_Weight5` (%MW24) = **14 803 kg**: what the HMI was showing as "silo 4".
+
+So the HMI's "silo 4" is really reading %MW24.
+
+### 4. Configuration (this is the fault)
+
+- `hmi/fuxa-tags.csv`: `Weight4` = %MW23 = register 1047 (0-based) = **FUXA offset 1048**. The tag says **1049**: register 1048 = %MW24 = silo 5.
+- **The check to use on every HMI change:** change one PLC value at a time and watch which display moves. In the lab, `refill 4 9000` at `lab>` changes the real silo 4, and the wrong tag doesn't move.
+
+### 5. Repair and prove
+
+![Feeder HMI after the fix: silo 4 = 14 602 kg, silo 5 = 14 803 kg](img/F7-4-after-fix.png)
+
+1. Set `Weight4` back to offset 1048 (or regenerate the tags from the map).
+2. **Result:** silo 4 reads **14 602 kg** and silo 5 **14 803 kg**, matching the PLC.
+
+## Summary
+
+| | |
 |---|---|
-| `HMI_Weight4` (%MW23) | **5 804 kg, steady** |
-| `HMI_Weight5` (%MW24) | 2 600 → 2 565 kg, falling |
-
-What the HMI calls "silo 4" is really %MW24, silo 5.
-
-## 3. Configuration (this is the fault)
-
-- **The map:** `hmi/fuxa-tags.csv` says `Weight4` = register 1047 (0-based) = FUXA offset **1048**. The tag says 1049 = silo 5.
-- **The check:** change one PLC value at a time and watch which HMI number moves. In the lab, typing `refill 4 9000` at `lab>` changes the real silo 4, but the wrong tag doesn't move.
-
-## 4. Repair and prove
-
-1. Set `Weight4` back to offset 1048.
-2. Repeat the one-value check: refill silo 4 and the right display moves.
-3. If you rebuilt the tags with `python hmi/make_fuxa_device.py`, it regenerates every address from the map.
-
-## Recording script (about 2 min)
-
-1. "Silo 5 is feeding … but the HMI says silo 4 is dropping. Leaking gate?"
-2. "Gate 4 is closed, no alarm. Check the PLC itself: Monitoring says silo 4 is steady. The HMI is lying."
-3. "The tag's address is one too high: it's showing silo 5."
-4. Fix the address; refill silo 4 and show the right number move.
-
-**Lesson:** check the PLC before you believe the HMI. Test every HMI change by moving one value and watching which display follows.
+| **Symptom** | No alarm; HMI shows silo 4 dropping while silo 5 feeds |
+| **Online view** | PLC `HMI_Weight4` steady at 14 602 kg; the HMI number matches `HMI_Weight5` |
+| **Cause** | Off-by-one tag address (1049 instead of 1048): 0-based vs 1-based numbering |
+| **Fix** | Correct the address; verify by moving one value at a time |
+| **Lesson** | Check the PLC before believing the HMI. Test every HMI change by moving one value and watching which display follows |
